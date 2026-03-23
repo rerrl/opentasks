@@ -15,8 +15,8 @@ interface Task {
   assignedAgentId: number | null
   order: number
   status: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
 }
 
 interface TaskCardProps {

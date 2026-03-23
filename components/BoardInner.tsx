@@ -19,12 +19,6 @@ import { Plus, Settings } from "lucide-react"
 import { NewTaskModal } from "./NewTaskModal"
 import { EditTaskModal } from "./EditTaskModal"
 import { ManageAgentsModal } from "./ManageAgentsModal"
-import {
-  createTask,
-  updateTask,
-  deleteTask,
-  completeTask,
-} from "@/lib/actions/tasks"
 
 interface Task {
   id: number
@@ -33,15 +27,15 @@ interface Task {
   assignedAgentId: number | null
   order: number
   status: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
 }
 
 interface Agent {
   id: number
   name: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
 }
 
 interface BoardInnerProps {
@@ -60,175 +54,146 @@ export default function BoardInner({
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
 
-  // Require 8px pointer movement before drag starts — lets clicks work on buttons
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 8 },
   })
   const sensors = useSensors(pointerSensor)
 
-  // Group tasks by agent
-  const tasksByAgent = new Map<number | null, Task[]>()
-  tasksByAgent.set(null, []) // Unassigned
+  // --- helpers ---
 
-  agents.forEach((agent) => {
-    tasksByAgent.set(agent.id, [])
-  })
+  async function apiPatch(url: string, body: Record<string, unknown>) {
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  }
 
-  tasks.forEach((task) => {
-    if (task.status === "TODO") {
-      const agentTasks = tasksByAgent.get(task.assignedAgentId)
-      if (agentTasks) {
-        agentTasks.push(task)
-      }
-    }
-  })
+  async function apiPost(url: string, body: Record<string, unknown>) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  }
 
-  // Sort tasks within each column by order
-  tasksByAgent.forEach((taskList) => {
-    taskList.sort((a, b) => a.order - b.order)
-  })
+  async function apiDelete(url: string) {
+    const res = await fetch(url, { method: "DELETE" })
+    return res.json()
+  }
+
+  // --- drag & drop ---
 
   function handleDragStart(event: DragStartEvent) {
-    const { active } = event
-    const task = tasks.find((t) => t.id.toString() === active.id)
-    if (task) {
-      setActiveTask(task)
-    }
+    const task = tasks.find((t) => t.id.toString() === event.active.id)
+    if (task) setActiveTask(task)
   }
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event
     if (!over || !activeTask) return
 
-    const activeId = active.id.toString()
-    const activeTaskIndex = tasks.findIndex(
-      (t) => t.id.toString() === activeId
+    const activeIdx = tasks.findIndex(
+      (t) => t.id.toString() === active.id.toString()
     )
-    if (activeTaskIndex === -1) return
+    if (activeIdx === -1) return
 
-    const activeTaskItem = tasks[activeTaskIndex]
+    const current = tasks[activeIdx]
+    let newAgentId: number | null | undefined
 
     if (over.data.current?.type === "column") {
-      const newAgentId = over.data.current.agentId as number | null
-      if (activeTaskItem.assignedAgentId !== newAgentId) {
-        setTasks((prev) => {
-          const newTasks = [...prev]
-          newTasks[activeTaskIndex] = {
-            ...newTasks[activeTaskIndex],
-            assignedAgentId: newAgentId,
-          }
-          return newTasks
-        })
-      }
+      newAgentId = over.data.current.agentId as number | null
     } else {
-      const overId = over.id.toString()
-      const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
-      if (overTaskIndex === -1) return
+      const overIdx = tasks.findIndex(
+        (t) => t.id.toString() === over.id.toString()
+      )
+      if (overIdx !== -1) newAgentId = tasks[overIdx].assignedAgentId
+    }
 
-      const overTaskItem = tasks[overTaskIndex]
-      if (activeTaskItem.assignedAgentId !== overTaskItem.assignedAgentId) {
-        setTasks((prev) => {
-          const newTasks = [...prev]
-          newTasks[activeTaskIndex] = {
-            ...newTasks[activeTaskIndex],
-            assignedAgentId: overTaskItem.assignedAgentId,
-          }
-          return newTasks
-        })
-      }
+    if (newAgentId !== undefined && current.assignedAgentId !== newAgentId) {
+      setTasks((prev) =>
+        prev.map((t, i) =>
+          i === activeIdx ? { ...t, assignedAgentId: newAgentId! } : t
+        )
+      )
     }
   }
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveTask(null)
-
     if (!over) return
 
     const activeId = active.id.toString()
     const overId = over.id.toString()
-
     if (activeId === overId) return
 
-    const activeTaskIndex = tasks.findIndex(
-      (t) => t.id.toString() === activeId
-    )
-    if (activeTaskIndex === -1) return
+    const activeIdx = tasks.findIndex((t) => t.id.toString() === activeId)
+    if (activeIdx === -1) return
 
-    const activeTaskItem = tasks[activeTaskIndex]
+    const task = tasks[activeIdx]
+    let newAgentId: number | null = task.assignedAgentId
+    let newOrder: number
 
-    // Dropping on a column (including empty ones)
     if (over.data.current?.type === "column") {
-      const targetAgentId = over.data.current.agentId as number | null
+      // Dropped on a column (including empty ones)
+      newAgentId = over.data.current.agentId as number | null
       const colTasks = tasks
         .filter(
           (t) =>
-            t.assignedAgentId === targetAgentId &&
-            t.id !== activeTaskItem.id &&
+            t.assignedAgentId === newAgentId &&
+            t.id !== task.id &&
             t.status === "TODO"
         )
         .sort((a, b) => a.order - b.order)
-
-      const newOrder =
+      newOrder =
         colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
-
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === activeTaskItem.id
-            ? { ...t, assignedAgentId: targetAgentId, order: newOrder }
-            : t
-        )
-      )
-      await updateTask(activeTaskItem.id, {
-        assignedAgentId: targetAgentId,
-        order: newOrder,
-      })
-      return
-    }
-
-    // Dropping on another task
-    const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
-    if (overTaskIndex === -1) return
-
-    const overTaskItem = tasks[overTaskIndex]
-
-    let newOrder: number
-    if (activeTaskItem.assignedAgentId === overTaskItem.assignedAgentId) {
-      if (activeTaskIndex < overTaskIndex) {
-        const beforeTask = tasks[overTaskIndex + 1]
-        newOrder = beforeTask
-          ? (overTaskItem.order + beforeTask.order) / 2
-          : overTaskItem.order + 100
-      } else {
-        const afterTask = tasks[overTaskIndex - 1]
-        newOrder = afterTask
-          ? (overTaskItem.order + afterTask.order) / 2
-          : overTaskItem.order - 100
-      }
     } else {
-      newOrder = overTaskItem.order - 50
+      // Dropped on another task
+      const overIdx = tasks.findIndex((t) => t.id.toString() === overId)
+      if (overIdx === -1) return
+      const overTask = tasks[overIdx]
+      newAgentId = overTask.assignedAgentId
+
+      if (task.assignedAgentId === overTask.assignedAgentId) {
+        if (activeIdx < overIdx) {
+          const next = tasks[overIdx + 1]
+          newOrder = next
+            ? (overTask.order + next.order) / 2
+            : overTask.order + 100
+        } else {
+          const prev = tasks[overIdx - 1]
+          newOrder = prev
+            ? (overTask.order + prev.order) / 2
+            : overTask.order - 100
+        }
+      } else {
+        newOrder = overTask.order - 50
+      }
     }
 
-    setTasks((prev) => {
-      const newTasks = [...prev]
-      newTasks[activeTaskIndex] = {
-        ...newTasks[activeTaskIndex],
-        order: newOrder,
-        assignedAgentId: overTaskItem.assignedAgentId,
-      }
-      return newTasks
-    })
+    // Update local state immediately
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === task.id ? { ...t, assignedAgentId: newAgentId, order: newOrder } : t
+      )
+    )
 
-    await updateTask(activeTaskItem.id, {
+    // Persist to DB
+    await apiPatch(`/api/tasks/${task.id}`, {
+      assignedAgentId: newAgentId,
       order: newOrder,
-      assignedAgentId: overTaskItem.assignedAgentId,
     })
   }
 
+  // --- CRUD callbacks ---
+
   async function handleCreateTask(data: { title: string; prompt: string }) {
-    const result = await createTask(data)
-    if (result.success && result.task) {
-      setTasks((prev) => [...prev, result.task as Task])
+    const created = await apiPost("/api/tasks", data)
+    if (created?.id) {
+      setTasks((prev) => [...prev, created])
     }
     setShowNewTask(false)
   }
@@ -237,46 +202,49 @@ export default function BoardInner({
     id: number,
     data: { title: string; prompt: string }
   ) {
-    const result = await updateTask(id, data)
-    if (result.success) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === id ? { ...t, ...data, updatedAt: new Date() } : t
-        )
-      )
-    }
+    await apiPatch(`/api/tasks/${id}`, data)
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+    )
     setEditingTask(null)
   }
 
   async function handleDeleteTask(id: number) {
-    const result = await deleteTask(id)
-    if (result.success) {
-      setTasks((prev) => prev.filter((t) => t.id !== id))
-    }
+    await apiDelete(`/api/tasks/${id}`)
+    setTasks((prev) => prev.filter((t) => t.id !== id))
   }
 
   async function handleCompleteTask(id: number) {
-    const result = await completeTask(id)
-    if (result.success) {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, status: "DONE" } : t))
-      )
-    }
-  }
-
-  function handleAgentCreated(agent: Agent) {
-    setAgents((prev) =>
-      [...prev, agent].sort((a, b) => a.name.localeCompare(b.name))
+    await apiPatch(`/api/tasks/${id}`, { status: "DONE" })
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: "DONE" } : t))
     )
   }
 
-  function handleAgentDeleted(agentId: number) {
-    setAgents((prev) => prev.filter((a) => a.id !== agentId))
+  async function handleCreateAgent(name: string): Promise<Agent | null> {
+    const created = await apiPost("/api/agents", { name })
+    if (created?.id) {
+      setAgents((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
+      )
+      return created
+    }
+    return null
   }
+
+  async function handleDeleteAgent(agentId: number): Promise<boolean> {
+    const res = await apiDelete(`/api/agents/${agentId}`)
+    if (res?.success !== false) {
+      setAgents((prev) => prev.filter((a) => a.id !== agentId))
+      return true
+    }
+    return false
+  }
+
+  // --- render ---
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Top navbar */}
       <header className="border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Agent Task Board</h1>
@@ -285,10 +253,7 @@ export default function BoardInner({
               <Plus className="h-4 w-4 mr-2" />
               New Task
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowManageAgents(true)}
-            >
+            <Button variant="outline" onClick={() => setShowManageAgents(true)}>
               <Settings className="h-4 w-4 mr-2" />
               Manage Agents
             </Button>
@@ -296,7 +261,6 @@ export default function BoardInner({
         </div>
       </header>
 
-      {/* Main board area */}
       <main className="flex-1 overflow-x-auto p-6">
         <DndContext
           sensors={sensors}
@@ -306,23 +270,27 @@ export default function BoardInner({
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 h-full">
-            {/* Unassigned column */}
             <AgentColumn
               agentId={null}
               agentName="Unassigned"
-              tasks={tasksByAgent.get(null) || []}
+              tasks={tasks
+                .filter((t) => t.assignedAgentId === null && t.status === "TODO")
+                .sort((a, b) => a.order - b.order)}
               onEdit={(task) => setEditingTask(task)}
               onDelete={handleDeleteTask}
               onComplete={handleCompleteTask}
             />
 
-            {/* Agent columns */}
             {agents.map((agent) => (
               <AgentColumn
                 key={agent.id}
                 agentId={agent.id}
                 agentName={agent.name}
-                tasks={tasksByAgent.get(agent.id) || []}
+                tasks={tasks
+                  .filter(
+                    (t) => t.assignedAgentId === agent.id && t.status === "TODO"
+                  )
+                  .sort((a, b) => a.order - b.order)}
                 onEdit={(task) => setEditingTask(task)}
                 onDelete={handleDeleteTask}
                 onComplete={handleCompleteTask}
@@ -343,7 +311,6 @@ export default function BoardInner({
         </DndContext>
       </main>
 
-      {/* Modals */}
       <NewTaskModal
         open={showNewTask}
         onClose={() => setShowNewTask(false)}
@@ -360,8 +327,8 @@ export default function BoardInner({
         open={showManageAgents}
         onClose={() => setShowManageAgents(false)}
         agents={agents}
-        onAgentCreated={handleAgentCreated}
-        onAgentDeleted={handleAgentDeleted}
+        onCreateAgent={handleCreateAgent}
+        onDeleteAgent={handleDeleteAgent}
       />
     </div>
   )

@@ -11,55 +11,51 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Trash2, AlertCircle } from "lucide-react"
-import { createAgent, deleteAgent } from "@/lib/actions/tasks"
 
 interface Agent {
   id: number
   name: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
 }
 
 interface ManageAgentsModalProps {
   open: boolean
   onClose: () => void
   agents: Agent[]
-  onAgentCreated: (agent: Agent) => void
-  onAgentDeleted: (agentId: number) => void
+  onCreateAgent: (name: string) => Promise<Agent | null>
+  onDeleteAgent: (agentId: number) => Promise<boolean>
 }
 
 export function ManageAgentsModal({
   open,
   onClose,
   agents,
-  onAgentCreated,
-  onAgentDeleted,
+  onCreateAgent,
+  onDeleteAgent,
 }: ManageAgentsModalProps) {
   const [newAgentName, setNewAgentName] = useState("")
   const [error, setError] = useState<string | null>(null)
 
-  const handleAddAgent = async (e: React.FormEvent) => {
+  async function handleAddAgent(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    const name = newAgentName.trim()
+    if (!name) return
 
-    if (!newAgentName.trim()) return
-
-    const result = await createAgent({ name: newAgentName.trim() })
-    if (result.success && result.agent) {
-      onAgentCreated(result.agent as Agent)
+    const agent = await onCreateAgent(name)
+    if (agent) {
       setNewAgentName("")
     } else {
-      setError(result.error || "Failed to create agent")
+      setError("Failed to create agent")
     }
   }
 
-  const handleDeleteAgent = async (agentId: number) => {
+  async function handleDeleteAgent(agentId: number) {
     setError(null)
-    const result = await deleteAgent(agentId)
-    if (result.success) {
-      onAgentDeleted(agentId)
-    } else {
-      setError(result.error || "Failed to delete agent")
+    const ok = await onDeleteAgent(agentId)
+    if (!ok) {
+      setError("Failed to delete agent (may have assigned tasks)")
     }
   }
 
@@ -70,7 +66,6 @@ export function ManageAgentsModal({
           <DialogTitle>Manage Agents</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          {/* Add agent form */}
           <form onSubmit={handleAddAgent} className="mb-6">
             <div className="flex gap-2">
               <Input
@@ -83,7 +78,6 @@ export function ManageAgentsModal({
             </div>
           </form>
 
-          {/* Error message */}
           {error && (
             <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-center gap-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
@@ -91,7 +85,6 @@ export function ManageAgentsModal({
             </div>
           )}
 
-          {/* Agent list */}
           <div className="space-y-2">
             {agents.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
