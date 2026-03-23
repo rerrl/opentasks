@@ -32,8 +32,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(agent, { status: 201 })
-  } catch (error: unknown) {
-    console.error("POST /api/agents error:", error)
+  } catch (error) {
+    console.error("POST /api/agents error:", JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    const message = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack}` : String(error)
     if (
       error &&
       typeof error === "object" &&
@@ -45,9 +46,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

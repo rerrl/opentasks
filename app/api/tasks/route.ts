@@ -38,11 +38,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json(task, { status: 201 })
-  } catch (error: unknown) {
-    console.error("POST /api/tasks error:", error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
-      { status: 500 }
-    )
+  } catch (error) {
+    console.error("POST /api/tasks error:", JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    const message = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack}` : String(error)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
