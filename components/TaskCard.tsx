@@ -5,7 +5,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, CheckCircle } from "lucide-react"
+import { Edit, Trash2, CheckCircle, GripVertical } from "lucide-react"
 import { format } from "date-fns"
 
 interface Task {
@@ -26,7 +26,12 @@ interface TaskCardProps {
   onComplete: (taskId: number) => void
 }
 
-export function TaskCard({ task, onEdit, onDelete, onComplete }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onComplete,
+}: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -53,17 +58,24 @@ export function TaskCard({ task, onEdit, onDelete, onComplete }: TaskCardProps) 
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className={`mb-3 cursor-grab active:cursor-grabbing ${
-        isDragging ? "shadow-lg" : ""
-      }`}
+      className={`mb-3 ${isDragging ? "shadow-lg" : ""}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-sm font-semibold line-clamp-1">
-            {task.title}
-          </CardTitle>
-          <Badge variant="outline" className="text-xs">
+          {/* Drag handle — only this element has drag listeners */}
+          <div className="flex items-start gap-1 flex-1 min-w-0">
+            <button
+              {...listeners}
+              className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Drag to reorder"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <CardTitle className="text-sm font-semibold line-clamp-1">
+              {task.title}
+            </CardTitle>
+          </div>
+          <Badge variant="outline" className="text-xs shrink-0 ml-2">
             #{task.id}
           </Badge>
         </div>
@@ -81,10 +93,7 @@ export function TaskCard({ task, onEdit, onDelete, onComplete }: TaskCardProps) 
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation()
-                onComplete(task.id)
-              }}
+              onClick={() => onComplete(task.id)}
             >
               <CheckCircle className="h-3 w-3" />
             </Button>
@@ -92,10 +101,7 @@ export function TaskCard({ task, onEdit, onDelete, onComplete }: TaskCardProps) 
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(task)
-              }}
+              onClick={() => onEdit(task)}
             >
               <Edit className="h-3 w-3" />
             </Button>
@@ -103,10 +109,7 @@ export function TaskCard({ task, onEdit, onDelete, onComplete }: TaskCardProps) 
               variant="ghost"
               size="icon"
               className="h-6 w-6 text-destructive"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(task.id)
-              }}
+              onClick={() => onDelete(task.id)}
             >
               <Trash2 className="h-3 w-3" />
             </Button>
