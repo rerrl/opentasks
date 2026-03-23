@@ -1,49 +1,43 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const agentId = searchParams.get("agentId")
+    const tasks = await prisma.task.findMany({
+      where: { status: "TODO" },
+      orderBy: { order: "asc" },
+      include: { assignedAgent: true },
+    })
+    return NextResponse.json(tasks)
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}
 
-    if (!agentId) {
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { title, prompt } = body
+
+    if (!title || !prompt) {
       return NextResponse.json(
-        { error: "agentId parameter is required" },
+        { error: "title and prompt are required" },
         { status: 400 }
       )
     }
 
-    const agent = await prisma.agent.findUnique({
-      where: { id: parseInt(agentId) },
-    })
-
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 404 })
-    }
-
-    // Get the next TODO task for this agent, ordered by priority
-    const task = await prisma.task.findFirst({
-      where: {
-        assignedAgentId: agent.id,
+    const task = await prisma.task.create({
+      data: {
+        title,
+        prompt,
         status: "TODO",
       },
-      orderBy: { order: "asc" },
     })
 
-    if (!task) {
-      return NextResponse.json({ task: null })
-    }
-
-    // Mark task as done (since agent picked it up)
-    await prisma.task.update({
-      where: { id: task.id },
-      data: {
-        status: "DONE",
-        updatedAt: new Date(),
-      },
-    })
-
-    return NextResponse.json({ task })
+    return NextResponse.json(task, { status: 201 })
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },

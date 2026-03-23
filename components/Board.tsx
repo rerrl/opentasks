@@ -1,25 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   DndContext,
   DragEndEvent,
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
-  closestCenter,
   pointerWithin,
-  rectIntersection,
 } from "@dnd-kit/core"
-import { arrayMove } from "@dnd-kit/sortable"
 import { AgentColumn } from "./AgentColumn"
 import { TaskCard } from "./TaskCard"
 import { Button } from "@/components/ui/button"
-import { Plus, Settings } from "lucide-react"
+import { Plus, Settings, RefreshCw } from "lucide-react"
 import { NewTaskModal } from "./NewTaskModal"
 import { EditTaskModal } from "./EditTaskModal"
 import { ManageAgentsModal } from "./ManageAgentsModal"
-import { createTask, updateTask, deleteTask, completeTask } from "@/lib/actions/tasks"
+import {
+  createTask,
+  updateTask,
+  deleteTask,
+  completeTask,
+  getBoardData,
+} from "@/lib/actions/tasks"
 
 interface Task {
   id: number
@@ -51,6 +54,24 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
   const [showNewTask, setShowNewTask] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+
+  // Auto-refresh every 10 seconds
+  const refreshBoard = useCallback(async () => {
+    try {
+      const data = await getBoardData()
+      setTasks(data.tasks as Task[])
+      setAgents(data.agents as Agent[])
+      setLastRefresh(new Date())
+    } catch (err) {
+      // silent fail on refresh
+    }
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(refreshBoard, 10000)
+    return () => clearInterval(interval)
+  }, [refreshBoard])
 
   // Group tasks by agent
   const tasksByAgent = new Map<number | null, Task[]>()
@@ -87,15 +108,13 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
     if (!over || !activeTask) return
 
     const activeId = active.id.toString()
-    const overId = over.id.toString()
-
-    // Find the task being dragged
-    const activeTaskIndex = tasks.findIndex((t) => t.id.toString() === activeId)
+    const activeTaskIndex = tasks.findIndex(
+      (t) => t.id.toString() === activeId
+    )
     if (activeTaskIndex === -1) return
 
     const activeTaskItem = tasks[activeTaskIndex]
 
-    // Check if we're over a column
     if (over.data.current?.type === "column") {
       const newAgentId = over.data.current.agentId as number | null
       if (activeTaskItem.assignedAgentId !== newAgentId) {
@@ -109,12 +128,11 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
         })
       }
     } else {
-      // We're over another task
+      const overId = over.id.toString()
       const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
       if (overTaskIndex === -1) return
 
       const overTaskItem = tasks[overTaskIndex]
-
       if (activeTaskItem.assignedAgentId !== overTaskItem.assignedAgentId) {
         setTasks((prev) => {
           const newTasks = [...prev]
@@ -139,7 +157,9 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
 
     if (activeId === overId) return
 
-    const activeTaskIndex = tasks.findIndex((t) => t.id.toString() === activeId)
+    const activeTaskIndex = tasks.findIndex(
+      (t) => t.id.toString() === activeId
+    )
     const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
 
     if (activeTaskIndex === -1 || overTaskIndex === -1) return
@@ -147,29 +167,23 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
     const activeTaskItem = tasks[activeTaskIndex]
     const overTaskItem = tasks[overTaskIndex]
 
-    // Calculate new order based on position
     let newOrder: number
     if (activeTaskItem.assignedAgentId === overTaskItem.assignedAgentId) {
-      // Reordering within same column
       if (activeTaskIndex < overTaskIndex) {
-        // Moving down
         const beforeTask = tasks[overTaskIndex + 1]
         newOrder = beforeTask
           ? (overTaskItem.order + beforeTask.order) / 2
           : overTaskItem.order + 100
       } else {
-        // Moving up
         const afterTask = tasks[overTaskIndex - 1]
         newOrder = afterTask
           ? (overTaskItem.order + afterTask.order) / 2
           : overTaskItem.order - 100
       }
     } else {
-      // Moving to different column
       newOrder = overTaskItem.order - 50
     }
 
-    // Update local state
     setTasks((prev) => {
       const newTasks = [...prev]
       newTasks[activeTaskIndex] = {
@@ -180,7 +194,6 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
       return newTasks
     })
 
-    // Update in database
     updateTask(activeTaskItem.id, {
       order: newOrder,
       assignedAgentId: overTaskItem.assignedAgentId,
@@ -227,7 +240,9 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
   }
 
   function handleAgentCreated(agent: Agent) {
-    setAgents((prev) => [...prev, agent].sort((a, b) => a.name.localeCompare(b.name)))
+    setAgents((prev) =>
+      [...prev, agent].sort((a, b) => a.name.localeCompare(b.name))
+    )
   }
 
   function handleAgentDeleted(agentId: number) {
@@ -239,13 +254,25 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
       {/* Top navbar */}
       <header className="border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Agent Task Board</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Agent Task Board</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Auto-refreshes every 10s · Last:{" "}
+              {lastRefresh.toLocaleTimeString()}
+            </p>
+          </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={refreshBoard}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button onClick={() => setShowNewTask(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Task
             </Button>
-            <Button variant="outline" onClick={() => setShowManageAgents(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowManageAgents(true)}
+            >
               <Settings className="h-4 w-4 mr-2" />
               Manage Agents
             </Button>
