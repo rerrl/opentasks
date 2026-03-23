@@ -54,7 +54,7 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
   const [showNewTask, setShowNewTask] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   // Auto-refresh every 10 seconds
   const refreshBoard = useCallback(async () => {
@@ -257,8 +257,8 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
           <div>
             <h1 className="text-2xl font-bold">Agent Task Board</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Auto-refreshes every 10s · Last:{" "}
-              {lastRefresh.toLocaleTimeString()}
+              Auto-refreshes every 10s
+              {lastRefresh && <> · Last: {lastRefresh.toLocaleTimeString()}</>}
             </p>
           </div>
           <div className="flex gap-2">
