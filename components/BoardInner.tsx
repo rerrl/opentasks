@@ -9,7 +9,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  pointerWithin,
+  closestCenter,
 } from "@dnd-kit/core"
 import { AgentColumn } from "./AgentColumn"
 import { TaskCard } from "./TaskCard"
@@ -255,7 +255,7 @@ export default function BoardInner({
       <main className="flex-1 overflow-x-auto p-6">
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
