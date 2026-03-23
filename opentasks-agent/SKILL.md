@@ -47,6 +47,22 @@ Claim and complete tasks from the OpenTasks local task board via bash scripts.
 - If stuck, fail with a clear explanation rather than leaving stale.
 - API defaults to `http://localhost:3000`. Override with `OPENTASKS_API_URL`.
 
+### Result Field Examples
+
+**On success (DONE):**
+```bash
+scripts/updatetaskstatus.sh 42 DONE "Deployed to staging, PR #128 merged"
+scripts/updatetaskstatus.sh 42 DONE "Added dark mode toggle to settings page"
+scripts/updatetaskstatus.sh 42 DONE "Migrated DB schema, ran seed script"
+```
+
+**On failure (FAILED):**
+```bash
+scripts/updatetaskstatus.sh 42 FAILED "Missing API key for payment service — can't reach endpoint"
+scripts/updatetaskstatus.sh 42 FAILED "Build fails due to type error in UserCard.tsx:47"
+scripts/updatetaskstatus.sh 42 FAILED "Task requires AWS credentials not available in this environment"
+```
+
 ## Agent Name
 
-Use your OpenClaw agent ID (e.g., `junior-dev`).
+Use your OpenClaw agent ID (e.g., `junior-dev`). You can find yours by running `openclaw status` — it's the agent name shown in the output.
