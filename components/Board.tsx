@@ -1,15 +1,6 @@
 "use client"
 
-import dynamic from "next/dynamic"
-
-const BoardInner = dynamic(() => import("@/components/BoardInner"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-screen">
-      <p className="text-muted-foreground">Loading board...</p>
-    </div>
-  ),
-})
+import BoardInner from "./BoardInner"
 
 export function Board({
   initialTasks,

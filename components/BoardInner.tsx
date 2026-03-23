@@ -1,18 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-} from "@dnd-kit/core"
 import { AgentColumn } from "./AgentColumn"
-import { TaskCard } from "./TaskCard"
 import { Button } from "@/components/ui/button"
 import { Plus, Settings } from "lucide-react"
 import { NewTaskModal } from "./NewTaskModal"
@@ -48,15 +37,9 @@ export default function BoardInner({
 }: BoardInnerProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [agents, setAgents] = useState<Agent[]>(initialAgents)
-  const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [showNewTask, setShowNewTask] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
-
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: { distance: 8 },
-  })
-  const sensors = useSensors(pointerSensor)
 
   // --- helpers ---
 
@@ -83,103 +66,61 @@ export default function BoardInner({
     return res.json()
   }
 
-  // --- drag & drop ---
+  // --- assign task to agent ---
 
-  function handleDragStart(event: DragStartEvent) {
-    const task = tasks.find((t) => t.id.toString() === event.active.id)
-    if (task) setActiveTask(task)
+  async function handleAssign(taskId: number, agentId: number | null) {
+    // Put at bottom of the target column
+    const colTasks = tasks
+      .filter((t) => t.assignedAgentId === agentId && t.id !== taskId && t.status === "TODO")
+      .sort((a, b) => a.order - b.order)
+    const newOrder = colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, assignedAgentId: agentId, order: newOrder } : t
+      )
+    )
+    await apiPatch(`/api/tasks/${taskId}`, { assignedAgentId: agentId, order: newOrder })
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveTask(null)
-    if (!over) return
+  // --- move task within column ---
 
-    const activeId = active.id.toString()
-    const overId = over.id.toString()
+  async function handleMove(taskId: number, direction: "up" | "down" | "top" | "bottom") {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return
 
-    // Read tasks from state (not from a stale closure)
-    // We use a functional updater below, so we need the current snapshot
-    // for our calculations. Grab it fresh.
-    let newAgentId: number | null
+    const colTasks = tasks
+      .filter((t) => t.assignedAgentId === task.assignedAgentId && t.status === "TODO")
+      .sort((a, b) => a.order - b.order)
+
+    const idx = colTasks.findIndex((t) => t.id === taskId)
+    if (idx === -1) return
+
     let newOrder: number
-    let taskId: number
 
-    if (over.data.current?.type === "column") {
-      // Dropped on a column header / empty zone
-      const targetAgentId = over.data.current.agentId as number | null
-
-      // Find the task we dropped
-      const droppedTask = tasks.find((t) => t.id.toString() === activeId)
-      if (!droppedTask) return
-
-      taskId = droppedTask.id
-      newAgentId = targetAgentId
-
-      // Order: below all existing tasks in that column
-      const colTasks = tasks
-        .filter(
-          (t) =>
-            t.assignedAgentId === targetAgentId &&
-            t.id !== droppedTask.id &&
-            t.status === "TODO"
-        )
-        .sort((a, b) => a.order - b.order)
-
-      newOrder =
-        colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
-    } else if (activeId !== overId) {
-      // Dropped on another task card
-      const droppedTask = tasks.find((t) => t.id.toString() === activeId)
-      const targetTask = tasks.find((t) => t.id.toString() === overId)
-      if (!droppedTask || !targetTask) return
-
-      taskId = droppedTask.id
-      newAgentId = targetTask.assignedAgentId
-
-      // Insert relative to the target task
-      const colTasks = tasks
-        .filter(
-          (t) =>
-            t.assignedAgentId === targetTask.assignedAgentId &&
-            t.id !== droppedTask.id &&
-            t.status === "TODO"
-        )
-        .sort((a, b) => a.order - b.order)
-
-      const targetIdx = colTasks.findIndex((t) => t.id === targetTask.id)
-
-      if (targetIdx === 0) {
-        // Target is first — go above it
-        newOrder = targetTask.order - 50
-      } else if (targetIdx === colTasks.length - 1) {
-        // Target is last — go below it
-        newOrder = targetTask.order + 50
-      } else {
-        // Between target and the one after it
-        newOrder = (targetTask.order + colTasks[targetIdx + 1].order) / 2
-      }
+    if (direction === "top") {
+      newOrder = colTasks[0].order - 100
+    } else if (direction === "bottom") {
+      newOrder = colTasks[colTasks.length - 1].order + 100
+    } else if (direction === "up" && idx > 0) {
+      const above = colTasks[idx - 1]
+      const aboveAbove = colTasks[idx - 2]
+      newOrder = aboveAbove ? (above.order + aboveAbove.order) / 2 : above.order - 50
+    } else if (direction === "down" && idx < colTasks.length - 1) {
+      const below = colTasks[idx + 1]
+      const belowBelow = colTasks[idx + 2]
+      newOrder = belowBelow ? (below.order + belowBelow.order) / 2 : below.order + 50
     } else {
       return
     }
 
-    // Update local state
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, assignedAgentId: newAgentId, order: newOrder }
-          : t
-      )
+      prev.map((t) => (t.id === taskId ? { ...t, order: newOrder } : t))
     )
-
-    // Persist
-    await apiPatch(`/api/tasks/${taskId}`, {
-      assignedAgentId: newAgentId,
-      order: newOrder,
-    })
+    await apiPatch(`/api/tasks/${taskId}`, { order: newOrder })
   }
 
-  // --- CRUD callbacks ---
+  // --- CRUD ---
 
   async function handleCreateTask(data: { title: string; prompt: string }) {
     const created = await apiPost("/api/tasks", data)
@@ -189,14 +130,9 @@ export default function BoardInner({
     setShowNewTask(false)
   }
 
-  async function handleUpdateTask(
-    id: number,
-    data: { title: string; prompt: string }
-  ) {
+  async function handleUpdateTask(id: number, data: { title: string; prompt: string }) {
     await apiPatch(`/api/tasks/${id}`, data)
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-    )
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)))
     setEditingTask(null)
   }
 
@@ -207,17 +143,13 @@ export default function BoardInner({
 
   async function handleCompleteTask(id: number) {
     await apiPatch(`/api/tasks/${id}`, { status: "DONE" })
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: "DONE" } : t))
-    )
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: "DONE" } : t)))
   }
 
   async function handleCreateAgent(name: string): Promise<Agent | null> {
     const created = await apiPost("/api/agents", { name })
     if (created?.id) {
-      setAgents((prev) =>
-        [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
-      )
+      setAgents((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
       return created
     }
     return null
@@ -253,52 +185,34 @@ export default function BoardInner({
       </header>
 
       <main className="flex-1 overflow-x-auto p-6">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4 h-full">
+        <div className="flex gap-4 h-full">
+          <AgentColumn
+            agentId={null}
+            agentName="Unassigned"
+            tasks={tasks.filter((t) => t.assignedAgentId === null && t.status === "TODO")}
+            agents={agents}
+            onEdit={setEditingTask}
+            onDelete={handleDeleteTask}
+            onComplete={handleCompleteTask}
+            onAssign={handleAssign}
+            onMove={handleMove}
+          />
+
+          {agents.map((agent) => (
             <AgentColumn
-              agentId={null}
-              agentName="Unassigned"
-              tasks={tasks
-                .filter((t) => t.assignedAgentId === null && t.status === "TODO")
-                .sort((a, b) => a.order - b.order)}
-              onEdit={(task) => setEditingTask(task)}
+              key={agent.id}
+              agentId={agent.id}
+              agentName={agent.name}
+              tasks={tasks.filter((t) => t.assignedAgentId === agent.id && t.status === "TODO")}
+              agents={agents}
+              onEdit={setEditingTask}
               onDelete={handleDeleteTask}
               onComplete={handleCompleteTask}
+              onAssign={handleAssign}
+              onMove={handleMove}
             />
-
-            {agents.map((agent) => (
-              <AgentColumn
-                key={agent.id}
-                agentId={agent.id}
-                agentName={agent.name}
-                tasks={tasks
-                  .filter(
-                    (t) => t.assignedAgentId === agent.id && t.status === "TODO"
-                  )
-                  .sort((a, b) => a.order - b.order)}
-                onEdit={(task) => setEditingTask(task)}
-                onDelete={handleDeleteTask}
-                onComplete={handleCompleteTask}
-              />
-            ))}
-          </div>
-
-          <DragOverlay>
-            {activeTask ? (
-              <TaskCard
-                task={activeTask}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                onComplete={() => {}}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+          ))}
+        </div>
       </main>
 
       <NewTaskModal

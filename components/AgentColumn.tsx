@@ -1,10 +1,5 @@
 "use client"
 
-import { useDroppable } from "@dnd-kit/core"
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
 import { TaskCard } from "./TaskCard"
 import { Badge } from "@/components/ui/badge"
 
@@ -19,40 +14,40 @@ interface Task {
   updatedAt: string
 }
 
+interface Agent {
+  id: number
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface AgentColumnProps {
   agentId: number | null
   agentName: string
   tasks: Task[]
+  agents: Agent[]
   onEdit: (task: Task) => void
   onDelete: (taskId: number) => void
   onComplete: (taskId: number) => void
+  onAssign: (taskId: number, agentId: number | null) => void
+  onMove: (taskId: number, direction: "up" | "down" | "top" | "bottom") => void
 }
 
 export function AgentColumn({
   agentId,
   agentName,
   tasks,
+  agents,
   onEdit,
   onDelete,
   onComplete,
+  onAssign,
+  onMove,
 }: AgentColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: agentId?.toString() || "unassigned",
-    data: {
-      type: "column",
-      agentId,
-    },
-  })
-
-  const taskIds = tasks.map((task) => task.id.toString())
+  const sorted = [...tasks].sort((a, b) => a.order - b.order)
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex flex-col min-w-[280px] max-w-[280px] h-full rounded-lg border bg-card ${
-        isOver ? "ring-2 ring-primary ring-offset-2" : ""
-      }`}
-    >
+    <div className="flex flex-col min-w-[300px] max-w-[300px] h-full rounded-lg border bg-card">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{agentName}</h3>
@@ -62,20 +57,26 @@ export function AgentColumn({
         </div>
       </div>
       <div className="flex-1 p-3 overflow-y-auto">
-        <SortableContext
-          items={taskIds}
-          strategy={verticalListSortingStrategy}
-        >
-          {tasks.map((task) => (
+        {sorted.map((task, i) => {
+          let position: "first" | "middle" | "last" | "only" = "middle"
+          if (sorted.length === 1) position = "only"
+          else if (i === 0) position = "first"
+          else if (i === sorted.length - 1) position = "last"
+
+          return (
             <TaskCard
               key={task.id}
               task={task}
+              agents={agents}
+              position={position}
               onEdit={onEdit}
               onDelete={onDelete}
               onComplete={onComplete}
+              onAssign={onAssign}
+              onMove={onMove}
             />
-          ))}
-        </SortableContext>
+          )
+        })}
       </div>
     </div>
   )

@@ -1,11 +1,17 @@
 "use client"
 
-import { useSortable } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, CheckCircle, GripVertical } from "lucide-react"
+import {
+  Edit,
+  Trash2,
+  CheckCircle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpToLine,
+  ArrowDownToLine,
+} from "lucide-react"
 import { format } from "date-fns"
 
 interface Task {
@@ -19,80 +25,128 @@ interface Task {
   updatedAt: string
 }
 
+interface Agent {
+  id: number
+  name: string
+}
+
 interface TaskCardProps {
   task: Task
+  agents: Agent[]
+  position: "first" | "middle" | "last" | "only"
   onEdit: (task: Task) => void
   onDelete: (taskId: number) => void
   onComplete: (taskId: number) => void
+  onAssign: (taskId: number, agentId: number | null) => void
+  onMove: (taskId: number, direction: "up" | "down" | "top" | "bottom") => void
 }
 
 export function TaskCard({
   task,
+  agents,
+  position,
   onEdit,
   onDelete,
   onComplete,
+  onAssign,
+  onMove,
 }: TaskCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: task.id.toString(),
-    data: {
-      type: "task",
-      task,
-    },
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className={`mb-3 ${isDragging ? "shadow-lg" : ""}`}
-    >
+    <Card className="mb-3">
       <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          {/* Drag handle — grip icon + title */}
-          <div className="flex items-start gap-1 flex-1 min-w-0">
-            <div
-              {...listeners}
-              className="flex items-start gap-1 flex-1 min-w-0 cursor-grab active:cursor-grabbing"
-            >
-              <GripVertical className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-              <CardTitle className="text-sm font-semibold line-clamp-1">
-                {task.title}
-              </CardTitle>
-            </div>
-          </div>
-          <Badge variant="outline" className="text-xs shrink-0 ml-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-semibold line-clamp-1 flex-1">
+            {task.title}
+          </CardTitle>
+          <Badge variant="outline" className="text-xs shrink-0">
             #{task.id}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+      <CardContent className="pt-0 space-y-2">
+        <p className="text-xs text-muted-foreground line-clamp-2">
           {task.prompt}
         </p>
+
+        {/* Agent assignment dropdown */}
+        <select
+          className="w-full text-xs border rounded px-2 py-1 bg-background"
+          value={task.assignedAgentId ?? ""}
+          onChange={(e) =>
+            onAssign(
+              task.id,
+              e.target.value === "" ? null : parseInt(e.target.value)
+            )
+          }
+        >
+          <option value="">Unassigned</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Actions row */}
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {format(new Date(task.createdAt), "MMM d, yyyy")}
           </span>
-          <div className="flex gap-1">
+
+          <div className="flex items-center gap-1">
+            {/* Move buttons */}
+            {position !== "first" && position !== "only" && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onMove(task.id, "top")}
+                  title="Move to top"
+                >
+                  <ArrowUpToLine className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onMove(task.id, "up")}
+                  title="Move up"
+                >
+                  <ArrowUp className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+            {position !== "last" && position !== "only" && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onMove(task.id, "down")}
+                  title="Move down"
+                >
+                  <ArrowDown className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onMove(task.id, "bottom")}
+                  title="Move to bottom"
+                >
+                  <ArrowDownToLine className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+
+            {/* Action buttons */}
             <Button
               variant="ghost"
               size="icon"
               className="h-6 w-6"
               onClick={() => onComplete(task.id)}
+              title="Complete"
             >
               <CheckCircle className="h-3 w-3" />
             </Button>
@@ -101,6 +155,7 @@ export function TaskCard({
               size="icon"
               className="h-6 w-6"
               onClick={() => onEdit(task)}
+              title="Edit"
             >
               <Edit className="h-3 w-3" />
             </Button>
@@ -109,6 +164,7 @@ export function TaskCard({
               size="icon"
               className="h-6 w-6 text-destructive"
               onClick={() => onDelete(task.id)}
+              title="Delete"
             >
               <Trash2 className="h-3 w-3" />
             </Button>
