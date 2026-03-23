@@ -4,7 +4,6 @@ import { useState } from "react"
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
@@ -91,36 +90,6 @@ export default function BoardInner({
     if (task) setActiveTask(task)
   }
 
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event
-    if (!over || !activeTask) return
-
-    const activeIdx = tasks.findIndex(
-      (t) => t.id.toString() === active.id.toString()
-    )
-    if (activeIdx === -1) return
-
-    const current = tasks[activeIdx]
-    let newAgentId: number | null | undefined
-
-    if (over.data.current?.type === "column") {
-      newAgentId = over.data.current.agentId as number | null
-    } else {
-      const overIdx = tasks.findIndex(
-        (t) => t.id.toString() === over.id.toString()
-      )
-      if (overIdx !== -1) newAgentId = tasks[overIdx].assignedAgentId
-    }
-
-    if (newAgentId !== undefined && current.assignedAgentId !== newAgentId) {
-      setTasks((prev) =>
-        prev.map((t, i) =>
-          i === activeIdx ? { ...t, assignedAgentId: newAgentId! } : t
-        )
-      )
-    }
-  }
-
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveTask(null)
@@ -128,61 +97,83 @@ export default function BoardInner({
 
     const activeId = active.id.toString()
     const overId = over.id.toString()
-    if (activeId === overId) return
 
-    const activeIdx = tasks.findIndex((t) => t.id.toString() === activeId)
-    if (activeIdx === -1) return
-
-    const task = tasks[activeIdx]
-    let newAgentId: number | null = task.assignedAgentId
+    // Read tasks from state (not from a stale closure)
+    // We use a functional updater below, so we need the current snapshot
+    // for our calculations. Grab it fresh.
+    let newAgentId: number | null
     let newOrder: number
+    let taskId: number
 
     if (over.data.current?.type === "column") {
-      // Dropped on a column (including empty ones)
-      newAgentId = over.data.current.agentId as number | null
+      // Dropped on a column header / empty zone
+      const targetAgentId = over.data.current.agentId as number | null
+
+      // Find the task we dropped
+      const droppedTask = tasks.find((t) => t.id.toString() === activeId)
+      if (!droppedTask) return
+
+      taskId = droppedTask.id
+      newAgentId = targetAgentId
+
+      // Order: below all existing tasks in that column
       const colTasks = tasks
         .filter(
           (t) =>
-            t.assignedAgentId === newAgentId &&
-            t.id !== task.id &&
+            t.assignedAgentId === targetAgentId &&
+            t.id !== droppedTask.id &&
             t.status === "TODO"
         )
         .sort((a, b) => a.order - b.order)
+
       newOrder =
         colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
-    } else {
-      // Dropped on another task
-      const overIdx = tasks.findIndex((t) => t.id.toString() === overId)
-      if (overIdx === -1) return
-      const overTask = tasks[overIdx]
-      newAgentId = overTask.assignedAgentId
+    } else if (activeId !== overId) {
+      // Dropped on another task card
+      const droppedTask = tasks.find((t) => t.id.toString() === activeId)
+      const targetTask = tasks.find((t) => t.id.toString() === overId)
+      if (!droppedTask || !targetTask) return
 
-      if (task.assignedAgentId === overTask.assignedAgentId) {
-        if (activeIdx < overIdx) {
-          const next = tasks[overIdx + 1]
-          newOrder = next
-            ? (overTask.order + next.order) / 2
-            : overTask.order + 100
-        } else {
-          const prev = tasks[overIdx - 1]
-          newOrder = prev
-            ? (overTask.order + prev.order) / 2
-            : overTask.order - 100
-        }
+      taskId = droppedTask.id
+      newAgentId = targetTask.assignedAgentId
+
+      // Insert relative to the target task
+      const colTasks = tasks
+        .filter(
+          (t) =>
+            t.assignedAgentId === targetTask.assignedAgentId &&
+            t.id !== droppedTask.id &&
+            t.status === "TODO"
+        )
+        .sort((a, b) => a.order - b.order)
+
+      const targetIdx = colTasks.findIndex((t) => t.id === targetTask.id)
+
+      if (targetIdx === 0) {
+        // Target is first — go above it
+        newOrder = targetTask.order - 50
+      } else if (targetIdx === colTasks.length - 1) {
+        // Target is last — go below it
+        newOrder = targetTask.order + 50
       } else {
-        newOrder = overTask.order - 50
+        // Between target and the one after it
+        newOrder = (targetTask.order + colTasks[targetIdx + 1].order) / 2
       }
+    } else {
+      return
     }
 
-    // Update local state immediately
+    // Update local state
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === task.id ? { ...t, assignedAgentId: newAgentId, order: newOrder } : t
+        t.id === taskId
+          ? { ...t, assignedAgentId: newAgentId, order: newOrder }
+          : t
       )
     )
 
-    // Persist to DB
-    await apiPatch(`/api/tasks/${task.id}`, {
+    // Persist
+    await apiPatch(`/api/tasks/${taskId}`, {
       assignedAgentId: newAgentId,
       order: newOrder,
     })
@@ -266,7 +257,6 @@ export default function BoardInner({
           sensors={sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 h-full">
