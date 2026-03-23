@@ -13,6 +13,7 @@ export function Board({
     assignedAgentId: number | null
     order: number
     status: string
+    result: string | null
     createdAt: string
     updatedAt: string
   }[]

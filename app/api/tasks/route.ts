@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
         title,
         prompt,
         status: "TODO",
+        result: null,
       },
     })
 

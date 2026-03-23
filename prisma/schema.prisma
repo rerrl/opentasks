@@ -16,16 +16,17 @@ model Agent {
 }
 
 model Task {
-  id             Int      @id @default(autoincrement())
-  title          String
-  prompt         String
+  id              Int      @id @default(autoincrement())
+  title           String
+  prompt          String
   assignedAgentId Int?
-  order          Float    @default(1000)
-  status         String   @default("TODO")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  order           Float    @default(1000)
+  status          String   @default("TODO")
+  result          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  assignedAgent  Agent?   @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  assignedAgent   Agent?   @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
 
   @@map("tasks")
 }

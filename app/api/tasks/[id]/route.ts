@@ -13,7 +13,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, prompt, assignedAgentId, order, status } = body
+    const { title, prompt, assignedAgentId, order, status, result } = body
 
     const updateData: Record<string, unknown> = {}
     if (title !== undefined) updateData.title = title
@@ -21,6 +21,7 @@ export async function PATCH(
     if (assignedAgentId !== undefined) updateData.assignedAgentId = assignedAgentId
     if (order !== undefined) updateData.order = order
     if (status !== undefined) updateData.status = status
+    if (result !== undefined) updateData.result = result
 
     const task = await prisma.task.update({
       where: { id },

@@ -14,6 +14,13 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 
+const STATUS_COLORS: Record<string, string> = {
+  TODO: "bg-blue-100 text-blue-800",
+  "IN-PROGRESS": "bg-yellow-100 text-yellow-800",
+  DONE: "bg-green-100 text-green-800",
+  FAILED: "bg-red-100 text-red-800",
+}
+
 interface Task {
   id: number
   title: string
@@ -21,6 +28,7 @@ interface Task {
   assignedAgentId: number | null
   order: number
   status: string
+  result: string | null
   createdAt: string
   updatedAt: string
 }
@@ -58,15 +66,36 @@ export function TaskCard({
           <CardTitle className="text-sm font-semibold line-clamp-1 flex-1">
             {task.title}
           </CardTitle>
-          <Badge variant="outline" className="text-xs shrink-0">
-            #{task.id}
-          </Badge>
+          <div className="flex items-center gap-1 shrink-0">
+            <Badge
+              variant="outline"
+              className={`text-[10px] px-1.5 ${STATUS_COLORS[task.status] || ""}`}
+            >
+              {task.status}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              #{task.id}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-2">
         <p className="text-xs text-muted-foreground line-clamp-2">
           {task.prompt}
         </p>
+
+        {/* Show result if present */}
+        {task.result && (
+          <div
+            className={`text-xs p-2 rounded border ${
+              task.status === "FAILED"
+                ? "bg-red-50 border-red-200 text-red-800"
+                : "bg-green-50 border-green-200 text-green-800"
+            }`}
+          >
+            <span className="font-medium">Result:</span> {task.result}
+          </div>
+        )}
 
         {/* Agent assignment dropdown */}
         <select
