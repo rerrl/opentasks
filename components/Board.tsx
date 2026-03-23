@@ -7,6 +7,9 @@ import {
   DragOverEvent,
   DragOverlay,
   DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
   pointerWithin,
 } from "@dnd-kit/core"
 import { AgentColumn } from "./AgentColumn"
@@ -55,6 +58,12 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+
+  // Require 8px pointer movement before drag starts — lets clicks work on buttons
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 },
+  })
+  const sensors = useSensors(pointerSensor)
 
   // Auto-refresh every 10 seconds
   const refreshBoard = useCallback(async () => {
@@ -160,11 +169,43 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
     const activeTaskIndex = tasks.findIndex(
       (t) => t.id.toString() === activeId
     )
-    const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
-
-    if (activeTaskIndex === -1 || overTaskIndex === -1) return
+    if (activeTaskIndex === -1) return
 
     const activeTaskItem = tasks[activeTaskIndex]
+
+    // Dropping on a column (including empty ones)
+    if (over.data.current?.type === "column") {
+      const targetAgentId = over.data.current.agentId as number | null
+      const colTasks = tasks
+        .filter(
+          (t) =>
+            t.assignedAgentId === targetAgentId &&
+            t.id !== activeTaskItem.id &&
+            t.status === "TODO"
+        )
+        .sort((a, b) => a.order - b.order)
+
+      const newOrder =
+        colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
+
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === activeTaskItem.id
+            ? { ...t, assignedAgentId: targetAgentId, order: newOrder }
+            : t
+        )
+      )
+      updateTask(activeTaskItem.id, {
+        assignedAgentId: targetAgentId,
+        order: newOrder,
+      })
+      return
+    }
+
+    // Dropping on another task
+    const overTaskIndex = tasks.findIndex((t) => t.id.toString() === overId)
+    if (overTaskIndex === -1) return
+
     const overTaskItem = tasks[overTaskIndex]
 
     let newOrder: number
@@ -283,6 +324,7 @@ export function Board({ initialTasks, initialAgents }: BoardProps) {
       {/* Main board area */}
       <main className="flex-1 overflow-x-auto p-6">
         <DndContext
+          sensors={sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
