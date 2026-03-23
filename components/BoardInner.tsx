@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import {
   DndContext,
   DragEndEvent,
@@ -15,7 +15,7 @@ import {
 import { AgentColumn } from "./AgentColumn"
 import { TaskCard } from "./TaskCard"
 import { Button } from "@/components/ui/button"
-import { Plus, Settings, RefreshCw } from "lucide-react"
+import { Plus, Settings } from "lucide-react"
 import { NewTaskModal } from "./NewTaskModal"
 import { EditTaskModal } from "./EditTaskModal"
 import { ManageAgentsModal } from "./ManageAgentsModal"
@@ -24,7 +24,6 @@ import {
   updateTask,
   deleteTask,
   completeTask,
-  getBoardData,
 } from "@/lib/actions/tasks"
 
 interface Task {
@@ -60,35 +59,12 @@ export default function BoardInner({
   const [showNewTask, setShowNewTask] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   // Require 8px pointer movement before drag starts — lets clicks work on buttons
   const pointerSensor = useSensor(PointerSensor, {
     activationConstraint: { distance: 8 },
   })
   const sensors = useSensors(pointerSensor)
-
-  // Auto-refresh every 10 seconds
-  const refreshBoard = useCallback(async () => {
-    try {
-      const data = await getBoardData()
-      setTasks(data.tasks as Task[])
-      setAgents(data.agents as Agent[])
-      setLastRefresh(new Date())
-    } catch (err) {
-      // silent fail on refresh
-    }
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(refreshBoard, 10000)
-    return () => clearInterval(interval)
-  }, [refreshBoard])
 
   // Group tasks by agent
   const tasksByAgent = new Map<number | null, Task[]>()
@@ -303,19 +279,8 @@ export default function BoardInner({
       {/* Top navbar */}
       <header className="border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Agent Task Board</h1>
-            {mounted && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Auto-refreshes every 10s · Last:{" "}
-                {lastRefresh.toLocaleTimeString()}
-              </p>
-            )}
-          </div>
+          <h1 className="text-2xl font-bold">Agent Task Board</h1>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={refreshBoard}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
             <Button onClick={() => setShowNewTask(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Task

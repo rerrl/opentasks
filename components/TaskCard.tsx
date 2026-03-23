@@ -62,18 +62,17 @@ export function TaskCard({
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          {/* Drag handle — only this element has drag listeners */}
+          {/* Drag handle — grip icon + title */}
           <div className="flex items-start gap-1 flex-1 min-w-0">
-            <button
+            <div
               {...listeners}
-              className="mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
-              aria-label="Drag to reorder"
+              className="flex items-start gap-1 flex-1 min-w-0 cursor-grab active:cursor-grabbing"
             >
-              <GripVertical className="h-4 w-4" />
-            </button>
-            <CardTitle className="text-sm font-semibold line-clamp-1">
-              {task.title}
-            </CardTitle>
+              <GripVertical className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <CardTitle className="text-sm font-semibold line-clamp-1">
+                {task.title}
+              </CardTitle>
+            </div>
           </div>
           <Badge variant="outline" className="text-xs shrink-0 ml-2">
             #{task.id}
