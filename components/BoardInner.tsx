@@ -139,7 +139,7 @@ export default function BoardInner({
     }
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     setActiveTask(null)
 
@@ -179,7 +179,7 @@ export default function BoardInner({
             : t
         )
       )
-      updateTask(activeTaskItem.id, {
+      await updateTask(activeTaskItem.id, {
         assignedAgentId: targetAgentId,
         order: newOrder,
       })
@@ -219,7 +219,7 @@ export default function BoardInner({
       return newTasks
     })
 
-    updateTask(activeTaskItem.id, {
+    await updateTask(activeTaskItem.id, {
       order: newOrder,
       assignedAgentId: overTaskItem.assignedAgentId,
     })
