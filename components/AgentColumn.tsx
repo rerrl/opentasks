@@ -45,39 +45,92 @@ export function AgentColumn({
   onAssign,
   onMove,
 }: AgentColumnProps) {
-  const sorted = [...tasks].sort((a, b) => a.order - b.order)
+  // Group and sort: IN-PROGRESS first, then TODO (by order), then FAILED, then DONE
+  const inProgress = tasks.filter((t) => t.status === "IN-PROGRESS")
+  const todo = tasks
+    .filter((t) => t.status === "TODO")
+    .sort((a, b) => a.order - b.order)
+  const failed = tasks.filter((t) => t.status === "FAILED")
+  const done = tasks.filter((t) => t.status === "DONE")
+
+  const activeTasks = [...inProgress, ...todo]
+  const archivedTasks = [...failed, ...done]
+
+  function getPosition(
+    task: Task,
+    list: Task[]
+  ): "first" | "middle" | "last" | "only" {
+    if (list.length === 1) return "only"
+    const idx = list.findIndex((t) => t.id === task.id)
+    if (idx === 0) return "first"
+    if (idx === list.length - 1) return "last"
+    return "middle"
+  }
 
   return (
     <div className="flex flex-col min-w-[300px] max-w-[300px] h-full rounded-lg border bg-card">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{agentName}</h3>
-          <Badge variant="secondary" className="text-xs">
-            {tasks.length}
-          </Badge>
+          <div className="flex gap-1">
+            {inProgress.length > 0 && (
+              <Badge className="text-[10px] px-1.5 bg-yellow-100 text-yellow-800">
+                {inProgress.length} IP
+              </Badge>
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {todo.length} todo
+            </Badge>
+          </div>
         </div>
       </div>
       <div className="flex-1 p-3 overflow-y-auto">
-        {sorted.map((task, i) => {
-          let position: "first" | "middle" | "last" | "only" = "middle"
-          if (sorted.length === 1) position = "only"
-          else if (i === 0) position = "first"
-          else if (i === sorted.length - 1) position = "last"
+        {/* Active tasks: IN-PROGRESS + TODO */}
+        {activeTasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            agents={agents}
+            position={getPosition(task, activeTasks)}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onComplete={onComplete}
+            onAssign={onAssign}
+            onMove={activeTasks.length > 1 ? onMove : () => {}}
+          />
+        ))}
 
-          return (
-            <TaskCard
-              key={task.id}
-              task={task}
-              agents={agents}
-              position={position}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onComplete={onComplete}
-              onAssign={onAssign}
-              onMove={onMove}
-            />
-          )
-        })}
+        {/* Archived tasks: FAILED + DONE */}
+        {archivedTasks.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 my-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                Completed / Failed
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            {archivedTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                agents={agents}
+                position="only"
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onComplete={onComplete}
+                onAssign={onAssign}
+                onMove={() => {}}
+              />
+            ))}
+          </>
+        )}
+
+        {activeTasks.length === 0 && archivedTasks.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-8">
+            No tasks
+          </p>
+        )}
       </div>
     </div>
   )

@@ -72,7 +72,12 @@ export default function BoardInner({
   async function handleAssign(taskId: number, agentId: number | null) {
     // Put at bottom of the target column
     const colTasks = tasks
-      .filter((t) => t.assignedAgentId === agentId && t.id !== taskId && t.status === "TODO")
+      .filter(
+        (t) =>
+          t.assignedAgentId === agentId &&
+          t.id !== taskId &&
+          (t.status === "TODO" || t.status === "IN-PROGRESS")
+      )
       .sort((a, b) => a.order - b.order)
     const newOrder = colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
 
@@ -91,7 +96,11 @@ export default function BoardInner({
     if (!task) return
 
     const colTasks = tasks
-      .filter((t) => t.assignedAgentId === task.assignedAgentId && t.status === "TODO")
+      .filter(
+        (t) =>
+          t.assignedAgentId === task.assignedAgentId &&
+          (t.status === "TODO" || t.status === "IN-PROGRESS")
+      )
       .sort((a, b) => a.order - b.order)
 
     const idx = colTasks.findIndex((t) => t.id === taskId)
@@ -190,7 +199,7 @@ export default function BoardInner({
           <AgentColumn
             agentId={null}
             agentName="Unassigned"
-            tasks={tasks.filter((t) => t.assignedAgentId === null && t.status === "TODO")}
+            tasks={tasks.filter((t) => t.assignedAgentId === null)}
             agents={agents}
             onEdit={setEditingTask}
             onDelete={handleDeleteTask}
@@ -204,7 +213,7 @@ export default function BoardInner({
               key={agent.id}
               agentId={agent.id}
               agentName={agent.name}
-              tasks={tasks.filter((t) => t.assignedAgentId === agent.id && t.status === "TODO")}
+              tasks={tasks.filter((t) => t.assignedAgentId === agent.id)}
               agents={agents}
               onEdit={setEditingTask}
               onDelete={handleDeleteTask}
