@@ -76,7 +76,7 @@ export default function BoardInner({
         (t) =>
           t.assignedAgentId === agentId &&
           t.id !== taskId &&
-          (t.status === "TODO" || t.status === "IN-PROGRESS")
+          (t.status === "TODO" || t.status === "IN_PROGRESS")
       )
       .sort((a, b) => a.order - b.order)
     const newOrder = colTasks.length > 0 ? colTasks[colTasks.length - 1].order + 100 : 1000
@@ -99,7 +99,7 @@ export default function BoardInner({
       .filter(
         (t) =>
           t.assignedAgentId === task.assignedAgentId &&
-          (t.status === "TODO" || t.status === "IN-PROGRESS")
+          (t.status === "TODO" || t.status === "IN_PROGRESS")
       )
       .sort((a, b) => a.order - b.order)
 

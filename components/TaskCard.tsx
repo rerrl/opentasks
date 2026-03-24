@@ -16,7 +16,7 @@ import { format } from "date-fns"
 
 const STATUS_COLORS: Record<string, string> = {
   TODO: "bg-blue-100 text-blue-800",
-  "IN-PROGRESS": "bg-yellow-100 text-yellow-800",
+  IN_PROGRESS: "bg-yellow-100 text-yellow-800",
   DONE: "bg-green-100 text-green-800",
   FAILED: "bg-red-100 text-red-800",
 }
@@ -71,7 +71,7 @@ export function TaskCard({
               variant="outline"
               className={`text-[10px] px-1.5 ${STATUS_COLORS[task.status] || ""}`}
             >
-              {task.status}
+              {STATUS_LABELS[task.status] || task.status}
             </Badge>
             <Badge variant="outline" className="text-xs">
               #{task.id}
@@ -197,6 +197,13 @@ export function TaskCard({
             >
               <Trash2 className="h-3 w-3" />
             </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+           </Button>
           </div>
         </div>
       </CardContent>
