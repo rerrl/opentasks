@@ -45,8 +45,8 @@ export function AgentColumn({
   onAssign,
   onMove,
 }: AgentColumnProps) {
-  // Group and sort: IN-PROGRESS first, then TODO (by order), then FAILED, then DONE
-  const inProgress = tasks.filter((t) => t.status === "IN-PROGRESS")
+  // Group and sort: IN_PROGRESS first, then TODO (by order), then FAILED, then DONE
+  const inProgress = tasks.filter((t) => t.status === "IN_PROGRESS")
   const todo = tasks
     .filter((t) => t.status === "TODO")
     .sort((a, b) => a.order - b.order)
@@ -85,7 +85,7 @@ export function AgentColumn({
         </div>
       </div>
       <div className="flex-1 p-3 overflow-y-auto">
-        {/* Active tasks: IN-PROGRESS + TODO */}
+        {/* Active tasks: IN_PROGRESS + TODO */}
         {activeTasks.map((task) => (
           <TaskCard
             key={task.id}
