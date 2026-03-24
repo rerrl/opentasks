@@ -15,17 +15,20 @@ Claim and complete tasks from the OpenTasks local task board via bash scripts.
    ```
    Returns `{"task": {...}}` or `{"task": null}`.
 
-2. **Mark in progress:**
+2. **⚠️ Mark IN_PROGRESS immediately — before touching any code:**
    ```bash
    scripts/updatetaskstatus.sh <taskId> IN_PROGRESS
    ```
+   **This is mandatory.** Do not start any work until this succeeds. If you skip this step, you've already broken the workflow.
 
-3. **Complete with notes:**
+3. **Do the work.**
+
+4. **Complete with notes:**
    ```bash
    scripts/updatetaskstatus.sh <taskId> DONE "summary of what was done"
    ```
 
-4. **Fail with reason:**
+5. **Or fail with reason:**
    ```bash
    scripts/updatetaskstatus.sh <taskId> FAILED "reason for failure"
    ```
