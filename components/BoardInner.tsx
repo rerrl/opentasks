@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { AgentColumn } from "./AgentColumn"
 import { Button } from "@/components/ui/button"
 import { Plus, Settings } from "lucide-react"
@@ -42,6 +42,41 @@ export default function BoardInner({
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
 
+  // Track if user is mid-action to avoid disruptive refreshes
+  const isInteracting = useRef(false)
+  const markInteracting = useCallback(() => {
+    isInteracting.current = true
+    clearTimeout((markInteracting as any)._timeout)
+    ;(markInteracting as any)._timeout = setTimeout(() => {
+      isInteracting.current = false
+    }, 3000)
+  }, [])
+
+  // Auto-refresh every 10s
+  useEffect(() => {
+    let cancelled = false
+
+    async function refresh() {
+      if (isInteracting.current) return
+      try {
+        const res = await fetch("/api/board", { cache: "no-store" })
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        setTasks(data.tasks)
+        setAgents(data.agents)
+      } catch {
+        // swallow — next tick will retry
+      }
+    }
+
+    const interval = setInterval(refresh, 10_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
+
   // --- helpers ---
 
   async function apiPatch(url: string, body: Record<string, unknown>) {
@@ -70,6 +105,7 @@ export default function BoardInner({
   // --- assign task to agent ---
 
   async function handleAssign(taskId: number, agentId: number | null) {
+    markInteracting()
     // Put at bottom of the target column
     const colTasks = tasks
       .filter(
@@ -92,6 +128,7 @@ export default function BoardInner({
   // --- move task within column ---
 
   async function handleMove(taskId: number, direction: "up" | "down" | "top" | "bottom") {
+    markInteracting()
     const task = tasks.find((t) => t.id === taskId)
     if (!task) return
 
@@ -133,6 +170,7 @@ export default function BoardInner({
   // --- CRUD ---
 
   async function handleCreateTask(data: { title: string; prompt: string }) {
+    markInteracting()
     const created = await apiPost("/api/tasks", data)
     if (created?.id) {
       setTasks((prev) => [...prev, created])
@@ -141,22 +179,26 @@ export default function BoardInner({
   }
 
   async function handleUpdateTask(id: number, data: { title: string; prompt: string }) {
+    markInteracting()
     await apiPatch(`/api/tasks/${id}`, data)
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)))
     setEditingTask(null)
   }
 
   async function handleDeleteTask(id: number) {
+    markInteracting()
     await apiDelete(`/api/tasks/${id}`)
     setTasks((prev) => prev.filter((t) => t.id !== id))
   }
 
   async function handleCompleteTask(id: number) {
+    markInteracting()
     await apiPatch(`/api/tasks/${id}`, { status: "DONE" })
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: "DONE" } : t)))
   }
 
   async function handleCreateAgent(name: string): Promise<Agent | null> {
+    markInteracting()
     const created = await apiPost("/api/agents", { name })
     if (created?.id) {
       setAgents((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
@@ -166,6 +208,7 @@ export default function BoardInner({
   }
 
   async function handleDeleteAgent(agentId: number): Promise<boolean> {
+    markInteracting()
     const res = await apiDelete(`/api/agents/${agentId}`)
     if (res?.success !== false) {
       setAgents((prev) => prev.filter((a) => a.id !== agentId))
