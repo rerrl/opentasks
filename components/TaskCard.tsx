@@ -21,6 +21,13 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED: "bg-red-100 text-red-800",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  TODO: "TODO",
+  IN_PROGRESS: "IP",
+  DONE: "DONE",
+  FAILED: "FAILED",
+}
+
 interface Task {
   id: number
   title: string
@@ -197,13 +204,6 @@ export function TaskCard({
             >
               <Trash2 className="h-3 w-3" />
             </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-           </Button>
           </div>
         </div>
       </CardContent>
