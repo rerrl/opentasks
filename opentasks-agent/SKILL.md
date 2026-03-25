@@ -58,6 +58,16 @@ scripts/updatetaskstatus.sh <taskId> FAILED "reason for failure"
 - If stuck, fail with a clear explanation rather than leaving stale.
 - API defaults to `http://localhost:3000`. Override with `OPENTASKS_API_URL`.
 
+## API Reference
+
+If calling the API directly (instead of using the scripts), the base URL is `http://localhost:3000` (override with `OPENTASKS_API_URL`).
+
+- **Get board data:** `GET /api/board` — returns `{tasks: [...], agents: [...]}`
+- **Get next task:** `GET /api/tasks/next` — returns `{task: {...}}` or `{task: null}`
+- **Update task status:** `PATCH /api/tasks/<taskId>` — body: `{"status":"IN_PROGRESS"}`, `{"status":"DONE","result":"..."}`, or `{"status":"FAILED","result":"..."}`
+
+⚠️ **The update endpoint uses `PATCH`, not `PUT`.** If you're calling the API directly instead of using the scripts, make sure to use the correct HTTP method.
+
 ### Result Field Examples
 
 **On success (DONE):**
