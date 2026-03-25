@@ -78,7 +78,7 @@ export function AgentColumn({
           <h3 className="font-semibold text-sm">{agentName}</h3>
           <div className="flex gap-1">
             {inProgress.length > 0 && (
-              <Badge className="text-[10px] px-1.5 bg-yellow-100 text-yellow-800">
+              <Badge className="text-[10px] px-1.5 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                 {inProgress.length} IP
               </Badge>
             )}

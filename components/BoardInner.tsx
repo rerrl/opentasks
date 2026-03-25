@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { AgentColumn } from "./AgentColumn"
 import { Button } from "@/components/ui/button"
-import { Plus, Settings } from "lucide-react"
+import { Plus, Settings, Moon, Sun } from "lucide-react"
 import { NewTaskModal } from "./NewTaskModal"
 import { EditTaskModal } from "./EditTaskModal"
 import { ManageAgentsModal } from "./ManageAgentsModal"
@@ -41,6 +41,19 @@ export default function BoardInner({
   const [showNewTask, setShowNewTask] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showManageAgents, setShowManageAgents] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
+
+  // Initialize dark mode from class on html element (set by inline script)
+  useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains("dark"))
+  }, [])
+
+  function toggleDarkMode() {
+    const next = !darkMode
+    setDarkMode(next)
+    document.documentElement.classList.toggle("dark", next)
+    localStorage.setItem("darkMode", String(next))
+  }
 
   // Track if user is mid-action to avoid disruptive refreshes
   const isInteracting = useRef(false)
@@ -225,6 +238,9 @@ export default function BoardInner({
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Agent Task Board</h1>
           <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={toggleDarkMode} title={darkMode ? "Light mode" : "Dark mode"}>
+              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button onClick={() => setShowNewTask(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Task

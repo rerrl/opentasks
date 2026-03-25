@@ -15,10 +15,10 @@ import {
 import { format } from "date-fns"
 
 const STATUS_COLORS: Record<string, string> = {
-  TODO: "bg-blue-100 text-blue-800",
-  IN_PROGRESS: "bg-yellow-100 text-yellow-800",
-  DONE: "bg-green-100 text-green-800",
-  FAILED: "bg-red-100 text-red-800",
+  TODO: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  IN_PROGRESS: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  DONE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  FAILED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -94,8 +94,8 @@ export function TaskCard({
           <div
             className={`text-xs p-2 rounded border line-clamp-2 ${
               task.status === "FAILED"
-                ? "bg-red-50 border-red-200 text-red-800"
-                : "bg-green-50 border-green-200 text-green-800"
+                ? "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
+                : "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
             }`}
             title={task.result}
           >
