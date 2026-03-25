@@ -1,6 +1,8 @@
 import { Board } from "@/components/Board"
 import { getBoardData } from "@/lib/actions/tasks"
 
+export const dynamic = "force-dynamic"
+
 export default async function Home() {
   const { tasks, agents } = await getBoardData()
 
