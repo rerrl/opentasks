@@ -68,22 +68,20 @@ export function TaskCard({
 }: TaskCardProps) {
   return (
     <Card className="mb-3">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-semibold line-clamp-1 flex-1">
-            {task.title}
-          </CardTitle>
-          <div className="flex items-center gap-1 shrink-0">
-            <Badge
-              variant="outline"
-              className={`text-[10px] px-1.5 ${STATUS_COLORS[task.status] || ""}`}
-            >
-              {STATUS_LABELS[task.status] || task.status}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              #{task.id}
-            </Badge>
-          </div>
+      <CardHeader className="pb-1">
+        <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">
+          {task.title}
+        </CardTitle>
+        <div className="flex items-center gap-1.5 mt-1">
+          <Badge
+            variant="outline"
+            className={`text-[10px] px-1.5 ${STATUS_COLORS[task.status] || ""}`}
+          >
+            {STATUS_LABELS[task.status] || task.status}
+          </Badge>
+          <Badge variant="outline" className="text-[10px]">
+            #{task.id}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-2">
@@ -91,14 +89,15 @@ export function TaskCard({
           {task.prompt}
         </p>
 
-        {/* Show result if present */}
+        {/* Show result if present — truncated to 2 lines, full text on hover */}
         {task.result && (
           <div
-            className={`text-xs p-2 rounded border ${
+            className={`text-xs p-2 rounded border line-clamp-2 ${
               task.status === "FAILED"
                 ? "bg-red-50 border-red-200 text-red-800"
                 : "bg-green-50 border-green-200 text-green-800"
             }`}
+            title={task.result}
           >
             <span className="font-medium">Result:</span> {task.result}
           </div>
