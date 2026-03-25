@@ -50,8 +50,12 @@ export function AgentColumn({
   const todo = tasks
     .filter((t) => t.status === "TODO")
     .sort((a, b) => a.order - b.order)
-  const failed = tasks.filter((t) => t.status === "FAILED")
-  const done = tasks.filter((t) => t.status === "DONE")
+  const failed = tasks
+    .filter((t) => t.status === "FAILED")
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  const done = tasks
+    .filter((t) => t.status === "DONE")
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   const activeTasks = [...inProgress, ...todo]
   const archivedTasks = [...failed, ...done]
