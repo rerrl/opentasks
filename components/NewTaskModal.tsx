@@ -17,6 +17,7 @@ const REPOS = [
   { label: "rerrl/dprogram.me-be", value: "rerrl/dprogram.me-be" },
   { label: "rerrl/opentasks", value: "rerrl/opentasks" },
   { label: "rerrl/daily-planner-app", value: "rerrl/daily-planner-app" },
+  { label: "rerrl/resonance-app", value: "rerrl/resonance-app" },
 ]
 
 interface NewTaskModalProps {
